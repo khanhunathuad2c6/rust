@@ -17,6 +17,52 @@ pub type UnsizedArray = Wrap<[i32]>;
 pub struct FinalType;
 pub struct TopTypeNoTrait;
 
+pub struct A;
+pub struct B;
+pub struct C;
+pub struct D;
+impl Deref for A {
+    type Target = B;
+    fn deref(&self) -> &Self::Target {
+        unsafe { ACTIONS.push("deref A->B"); }
+        &B
+    }
+}
+impl Deref for B {
+    type Target = D;
+    fn deref(&self) -> &Self::Target {
+        unsafe { ACTIONS.push("deref B->D"); }
+        &D
+    }
+}
+impl Deref for C {
+    type Target = D;
+    fn deref(&self) -> &Self::Target {
+        unsafe { ACTIONS.push("deref C->D"); }
+        &D
+    }
+}
+impl Trait for A {
+    fn self_ty(&self) {
+        unsafe { ACTIONS.push("self_ty A"); }
+    }
+}
+impl Trait for B {
+    fn self_ty(&self) {
+        unsafe { ACTIONS.push("self_ty B"); }
+    }
+}
+impl Trait for C {
+    fn self_ty(&self) {
+        unsafe { ACTIONS.push("self_ty C"); }
+    }
+}
+impl Trait for D {
+    fn self_ty(&self) {
+        unsafe { ACTIONS.push("self_ty D"); }
+    }
+}
+
 impl Deref for TopType {
     type Target = ArrayWrapper;
     fn deref(&self) -> &Self::Target {
@@ -98,6 +144,15 @@ impl Trait for FinalType {
     }
 }
 
+fn deref_to_dyn() {
+    let x = match 0 {
+        0 => &TopTypeNoTrait as &TopTypeNoTrait,
+        1 => &TopTypeNoTrait as &FinalType,
+        2 => &TopTypeNoTrait as &FinalType as &dyn Trait,
+        _ => loop {},
+    };
+}
+
 fn deref_to_dyn_direct() {
     let x = match 0 {
         0 => &TopTypeNoTrait as &TopTypeNoTrait,
@@ -106,6 +161,31 @@ fn deref_to_dyn_direct() {
     };
 }
 
+fn direct_to_dyn() {
+    let x = &TopTypeNoTrait as &FinalType as &dyn Trait;
+}
+
+fn skipped_coerce() {
+    let a = match 0 {
+        0 => &A          as &A,
+        1 => &B          as &B,
+        2 => &C          as &C,
+        3 => &D          as &D,
+        _ => loop {},
+    };
+    assert_eq!(a.complete(), vec!["self_ty UnsizedArray"]);
+    let b = match 0 {
+        3 => &D          as &D,
+        0 => &A          as &A,
+        1 => &B          as &B,
+        2 => &C          as &C,
+        _ => loop {},
+    };
+    assert_eq!(b.complete(), vec!["self_ty UnsizedArray"]);
+}
 fn main() {
+    deref_to_dyn();
     deref_to_dyn_direct();
+    direct_to_dyn();
+    skipped_coerce();
 }

@@ -1,5 +1,28 @@
 error[E0277]: the trait bound `TopTypeNoTrait: Trait` is not satisfied
-  --> $DIR/multistep-fail.rs:104:14
+  --> $DIR/multistep-fail.rs:151:14
+   |
+LL |         2 => &TopTypeNoTrait as &FinalType as &dyn Trait,
+   |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+   |
+help: the trait `Trait` is not implemented for `TopTypeNoTrait`
+  --> $DIR/multistep-fail.rs:18:1
+   |
+LL | pub struct TopTypeNoTrait;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^
+   = help: the following other types implement trait `Trait`:
+             A
+             B
+             C
+             D
+             FinalType
+             IntWrapper
+             TopType
+             Wrap<[i32; 0]>
+             Wrap<[i32]>
+   = note: required for the cast from `&TopTypeNoTrait` to `&dyn Trait`
+
+error[E0277]: the trait bound `TopTypeNoTrait: Trait` is not satisfied
+  --> $DIR/multistep-fail.rs:159:14
    |
 LL |         1 => &TopTypeNoTrait as &FinalType as &dyn Trait,
    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
@@ -10,6 +33,10 @@ help: the trait `Trait` is not implemented for `TopTypeNoTrait`
 LL | pub struct TopTypeNoTrait;
    | ^^^^^^^^^^^^^^^^^^^^^^^^^
    = help: the following other types implement trait `Trait`:
+             A
+             B
+             C
+             D
              FinalType
              IntWrapper
              TopType
@@ -17,6 +44,26 @@ LL | pub struct TopTypeNoTrait;
              Wrap<[i32]>
    = note: required for the cast from `&TopTypeNoTrait` to `&dyn Trait`
 
-error: aborting due to 1 previous error
+error[E0308]: `match` arms have incompatible types
+  --> $DIR/multistep-fail.rs:172:14
+   |
+LL |       let a = match 0 {
+   |  _____________-
+LL | |         0 => &A          as &A,
+   | |              ----------------- this is found to be of type `&B`
+LL | |         1 => &B          as &B,
+   | |              ----------------- this is found to be of type `&B`
+LL | |         2 => &C          as &C,
+   | |              ^^^^^^^^^^^^^^^^^ expected `&B`, found `&C`
+LL | |         3 => &D          as &D,
+LL | |         _ => loop {},
+LL | |     };
+   | |_____- `match` arms have incompatible types
+   |
+   = note: expected reference `&B`
+              found reference `&C`
 
-For more information about this error, try `rustc --explain E0277`.
+error: aborting due to 3 previous errors
+
+Some errors have detailed explanations: E0277, E0308.
+For more information about an error, try `rustc --explain E0277`.
