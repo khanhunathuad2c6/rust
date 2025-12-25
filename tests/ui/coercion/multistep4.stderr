@@ -1,0 +1,35 @@
+error[E0055]: reached the recursion limit while auto-dereferencing `B`
+  --> $DIR/multistep4.rs:80:14
+   |
+LL |         1 => &B      as &B,
+   |              ^^^^^^^^^^^^^ deref recursion limit reached
+   |
+   = help: consider increasing the recursion limit by adding a `#![recursion_limit = "256"]` attribute to your crate (`multistep4`)
+
+error[E0055]: reached the recursion limit while auto-dereferencing `B`
+  --> $DIR/multistep4.rs:88:18
+   |
+LL |     assert_eq!(a.complete(), vec!["self_ty Inner"]);
+   |                  ^^^^^^^^ deref recursion limit reached
+   |
+   = help: consider increasing the recursion limit by adding a `#![recursion_limit = "256"]` attribute to your crate (`multistep4`)
+
+error[E0055]: reached the recursion limit while auto-dereferencing `C`
+  --> $DIR/multistep4.rs:91:14
+   |
+LL |         2 => &B      as &C,
+   |              ^^^^^^^^^^^^^ deref recursion limit reached
+   |
+   = help: consider increasing the recursion limit by adding a `#![recursion_limit = "256"]` attribute to your crate (`multistep4`)
+
+error[E0055]: reached the recursion limit while auto-dereferencing `C`
+  --> $DIR/multistep4.rs:96:18
+   |
+LL |     assert_eq!(a.complete(), vec!["self_ty Inner"]);
+   |                  ^^^^^^^^ deref recursion limit reached
+   |
+   = help: consider increasing the recursion limit by adding a `#![recursion_limit = "256"]` attribute to your crate (`multistep4`)
+
+error: aborting due to 4 previous errors
+
+For more information about this error, try `rustc --explain E0055`.
