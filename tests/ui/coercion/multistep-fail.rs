@@ -3,65 +3,53 @@
 
 #![allow(static_mut_refs)]
 #![allow(dead_code)]
+#![allow(unused_macros)]
 use std::ops::Deref;
 
-pub static mut ACTIONS: Vec<&'static str> = Vec::new();
+static mut ACTIONS: Vec<&'static str> = Vec::new();
 
-pub struct Wrap<T: ?Sized>(T);
+trait Trait {
+    fn self_ty(&self);
+
+    fn complete(&self) -> Vec<&'static str> {
+        self.self_ty();
+        let actions = unsafe { ACTIONS.clone() };
+        unsafe { ACTIONS.clear() };
+        actions
+    }
+}
+
+macro_rules! do_trait_impl {
+    ($self:ident, $self_ty:literal) => {
+        impl Trait for $self {
+            fn self_ty(&self) {
+                unsafe { ACTIONS.push($self_ty); }
+            }
+        }
+    }    
+}
+
+trait Dynable {}
+struct Inner;
+impl Dynable for Inner {}
+
+struct Wrap<T: ?Sized>(T);
 
 // Deref Chain: FinalType <- UnsizedArray <- IntWrapper <- ArrayWrapper <- TopType
-pub struct TopType;
-pub type ArrayWrapper = Wrap<[i32; 0]>;
-pub struct IntWrapper;
-pub type UnsizedArray = Wrap<[i32]>;
-pub struct FinalType;
-pub struct TopTypeNoTrait;
+struct TopType;
+type ArrayWrapper = Wrap<[i32; 0]>;
+struct IntWrapper;
+type UnsizedArray = Wrap<[i32]>;
+struct FinalType;
+struct TopTypeNoTrait;
 
-pub struct A;
-pub struct B;
-pub struct C;
-pub struct D;
-impl Deref for A {
-    type Target = B;
-    fn deref(&self) -> &Self::Target {
-        unsafe { ACTIONS.push("deref A->B"); }
-        &B
-    }
-}
-impl Deref for B {
-    type Target = D;
-    fn deref(&self) -> &Self::Target {
-        unsafe { ACTIONS.push("deref B->D"); }
-        &D
-    }
-}
-impl Deref for C {
-    type Target = D;
-    fn deref(&self) -> &Self::Target {
-        unsafe { ACTIONS.push("deref C->D"); }
-        &D
-    }
-}
-impl Trait for A {
-    fn self_ty(&self) {
-        unsafe { ACTIONS.push("self_ty A"); }
-    }
-}
-impl Trait for B {
-    fn self_ty(&self) {
-        unsafe { ACTIONS.push("self_ty B"); }
-    }
-}
-impl Trait for C {
-    fn self_ty(&self) {
-        unsafe { ACTIONS.push("self_ty C"); }
-    }
-}
-impl Trait for D {
-    fn self_ty(&self) {
-        unsafe { ACTIONS.push("self_ty D"); }
-    }
-}
+do_trait_impl!(TopType, "self_ty TopType");
+do_trait_impl!(ArrayWrapper, "self_ty ArrayWrapper");
+do_trait_impl!(IntWrapper, "self_ty IntWrapper");
+do_trait_impl!(UnsizedArray, "self_ty UnsizedArray");
+do_trait_impl!(FinalType, "self_ty FinalType");
+do_trait_impl!(TopTypeNoTrait, "self_ty TopTypeNoTrait");
+impl Dynable for FinalType {}
 
 impl Deref for TopType {
     type Target = ArrayWrapper;
@@ -103,44 +91,36 @@ impl Deref for TopTypeNoTrait {
     }
 }
 
-trait Trait {
-    fn self_ty(&self);
+struct A;
+struct B;
+struct C;
+struct D;
 
-    fn complete(&self) -> Vec<&'static str> {
-        self.self_ty();
-        let actions = unsafe { ACTIONS.clone() };
-        unsafe { ACTIONS.clear() };
-        actions
+do_trait_impl!(A, "self_ty A");
+do_trait_impl!(B, "self_ty B");
+do_trait_impl!(C, "self_ty C");
+do_trait_impl!(D, "self_ty D");
+
+
+impl Deref for A {
+    type Target = B;
+    fn deref(&self) -> &Self::Target {
+        unsafe { ACTIONS.push("deref A->B"); }
+        &B
     }
 }
-
-impl Trait for TopType {
-    fn self_ty(&self) {
-        unsafe { ACTIONS.push("self_ty TopType"); }
+impl Deref for B {
+    type Target = D;
+    fn deref(&self) -> &Self::Target {
+        unsafe { ACTIONS.push("deref B->D"); }
+        &D
     }
 }
-
-impl Trait for ArrayWrapper {
-    fn self_ty(&self) {
-        unsafe { ACTIONS.push("self_ty ArrayWrapper"); }
-    }
-}
-
-impl Trait for IntWrapper {
-    fn self_ty(&self) {
-        unsafe { ACTIONS.push("self_ty IntWrapper"); }
-    }
-}
-
-impl Trait for UnsizedArray {
-    fn self_ty(&self) {
-        unsafe { ACTIONS.push("self_ty UnsizedArray"); }
-    }
-}
-
-impl Trait for FinalType {
-    fn self_ty(&self) {
-        unsafe { ACTIONS.push("self_ty FinalType"); }
+impl Deref for C {
+    type Target = D;
+    fn deref(&self) -> &Self::Target {
+        unsafe { ACTIONS.push("deref C->D"); }
+        &D
     }
 }
 
@@ -148,7 +128,7 @@ fn deref_to_dyn() {
     let x = match 0 {
         0 => &TopTypeNoTrait as &TopTypeNoTrait,
         1 => &TopTypeNoTrait as &FinalType,
-        2 => &TopTypeNoTrait as &FinalType as &dyn Trait,
+        2 => &TopTypeNoTrait as &FinalType as &dyn Dynable,
         _ => loop {},
     };
 }
@@ -156,13 +136,13 @@ fn deref_to_dyn() {
 fn deref_to_dyn_direct() {
     let x = match 0 {
         0 => &TopTypeNoTrait as &TopTypeNoTrait,
-        1 => &TopTypeNoTrait as &FinalType as &dyn Trait,
+        1 => &TopTypeNoTrait as &FinalType as &dyn Dynable,
         _ => loop {},
     };
 }
 
 fn direct_to_dyn() {
-    let x = &TopTypeNoTrait as &FinalType as &dyn Trait;
+    let x = &TopTypeNoTrait as &FinalType as &dyn Dynable;
 }
 
 fn skipped_coerce() {

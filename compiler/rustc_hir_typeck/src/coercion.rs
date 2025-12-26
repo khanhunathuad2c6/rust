@@ -124,6 +124,14 @@ enum ForceLeakCheck {
     No,
 }
 
+#[allow(unused)]
+#[derive(Debug, Copy, Clone)]
+enum CoerceDirection {
+    ToPrev,
+    ToNew,
+    Both,
+}
+
 impl<'f, 'tcx> Coerce<'f, 'tcx> {
     fn new(
         fcx: &'f FnCtxt<'f, 'tcx>,
@@ -317,7 +325,7 @@ impl<'f, 'tcx> Coerce<'f, 'tcx> {
         &self,
         prev_ty: Ty<'tcx>,
         new_ty: Ty<'tcx>,
-    ) -> InferResult<'tcx, (Vec<Adjustment<'tcx>>, Ty<'tcx>, bool)> {
+    ) -> InferResult<'tcx, (Vec<Adjustment<'tcx>>, Ty<'tcx>, CoerceDirection)> {
         // First, remove any resolved type variables (at the top level, at least):
         let prev_ty = self.shallow_resolve(prev_ty);
         let new_ty = self.shallow_resolve(new_ty);
@@ -339,7 +347,7 @@ impl<'f, 'tcx> Coerce<'f, 'tcx> {
             };
             return ret.map(|r| InferOk {
                 obligations: r.obligations,
-                value: (r.value.0, r.value.1, true),
+                value: (r.value.0, r.value.1, CoerceDirection::ToPrev),
             });
         }
 
@@ -350,7 +358,7 @@ impl<'f, 'tcx> Coerce<'f, 'tcx> {
             let ret = self.coerce_from_inference_variable(new_ty, prev_ty);
             return ret.map(|r| InferOk {
                 obligations: r.obligations,
-                value: (r.value.0, r.value.1, true),
+                value: (r.value.0, r.value.1, CoerceDirection::ToPrev),
             });
         }
 
@@ -367,7 +375,7 @@ impl<'f, 'tcx> Coerce<'f, 'tcx> {
             };
             return ret.map(|r| InferOk {
                 obligations: r.obligations,
-                value: (r.value.0, r.value.1, false),
+                value: (r.value.0, r.value.1, CoerceDirection::ToNew),
             });
         }
 
@@ -375,7 +383,7 @@ impl<'f, 'tcx> Coerce<'f, 'tcx> {
             let ret = self.coerce_from_inference_variable(prev_ty, new_ty);
             return ret.map(|r| InferOk {
                 obligations: r.obligations,
-                value: (r.value.0, r.value.1, false),
+                value: (r.value.0, r.value.1, CoerceDirection::ToNew),
             });
         }
 
@@ -449,7 +457,7 @@ impl<'f, 'tcx> Coerce<'f, 'tcx> {
             Ok(_) => {
                 return result.map(|r| InferOk {
                     obligations: r.obligations,
-                    value: (r.value.0, r.value.1, true),
+                    value: (r.value.0, r.value.1, CoerceDirection::ToPrev),
                 });
             }
             Err(e) => e,
@@ -459,7 +467,7 @@ impl<'f, 'tcx> Coerce<'f, 'tcx> {
         if let Ok(_) = result {
             return result.map(|r| InferOk {
                 obligations: r.obligations,
-                value: (r.value.0, r.value.1, false),
+                value: (r.value.0, r.value.1, CoerceDirection::ToNew),
             });
         }
 
@@ -1449,24 +1457,30 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         coerce.use_lub = true;
 
         let res = coerce.coerce_mutual(prev_ty, new_ty)?;
-        let (adjustments, target, prev_ty_chosen) = self.register_infer_ok_obligations(res);
-        if prev_ty_chosen {
-            self.apply_adjustments(new, adjustments);
-            debug!(
-                "coercion::try_find_coercion_lub: was able to coerce from new type {:?} to previous type {:?} ({:?})",
-                new_ty, prev_ty, target
-            );
-        } else {
-            for (expr, expr_ty) in exprs {
-                let ok = self.commit_if_ok(|_| coerce.coerce(*expr_ty, new_ty))?;
-                let (adj, _) = self.register_infer_ok_obligations(ok);
-                debug!(?expr_ty, ?new_ty);
-                self.set_adjustments(*expr, adj);
+        let (adjustments, target, coerce_direction) = self.register_infer_ok_obligations(res);
+        match coerce_direction {
+            CoerceDirection::ToPrev => {
+                self.apply_adjustments(new, adjustments);
+                debug!(
+                    "coercion::try_find_coercion_lub: was able to coerce from new type {:?} to previous type {:?} ({:?})",
+                    new_ty, prev_ty, target
+                );
             }
-            debug!(
-                "coercion::try_find_coercion_lub: was able to coerce previous type {:?} to new type {:?} ({:?})",
-                prev_ty, new_ty, target
-            );
+            CoerceDirection::ToNew => {
+                for (expr, expr_ty) in exprs {
+                    let ok = self.commit_if_ok(|_| coerce.coerce(*expr_ty, new_ty))?;
+                    let (adj, _) = self.register_infer_ok_obligations(ok);
+                    debug!(?expr_ty, ?new_ty);
+                    self.set_adjustments(*expr, adj);
+                }
+                debug!(
+                    "coercion::try_find_coercion_lub: was able to coerce previous type {:?} to new type {:?} ({:?})",
+                    prev_ty, new_ty, target
+                );
+            }
+            CoerceDirection::Both => {
+                todo!();
+            }
         }
 
         /*

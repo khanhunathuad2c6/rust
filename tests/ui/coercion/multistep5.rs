@@ -1,9 +1,10 @@
-//@ run-pass
+//@ check-fail
+//@ known-bug: #00000
 
 #![feature(unsize, coerce_unsized)]
 #![allow(static_mut_refs)]
 #![allow(dead_code)]
-#![allow(unused_macros)]
+use std::ops::Deref;
 
 static mut ACTIONS: Vec<&'static str> = Vec::new();
 
@@ -34,33 +35,44 @@ impl Dynable for Inner {}
 
 struct Wrap4<T: ?Sized>(T);
 
-impl<'b, T: ?Sized + std::marker::Unsize<U> + std::ops::CoerceUnsized<U>, U: ?Sized>
-    std::ops::CoerceUnsized<Wrap4<U>> for Wrap4<T> {}
+struct O;
+struct P;
+struct Q;
 
+do_trait_impl!(O, "self_ty O");
+do_trait_impl!(P, "self_ty P");
+do_trait_impl!(Q, "self_ty Q");
 
-type L = Wrap4<Inner>;
-type M = Wrap4<dyn Dynable + Send>;
-type N = Wrap4<dyn Dynable>;
-
-do_trait_impl!(L, "self_ty L");
-do_trait_impl!(M, "self_ty M");
-do_trait_impl!(N, "self_ty N");
+impl Deref for O {
+    type Target = P;
+    fn deref(&self) -> &Self::Target {
+        unsafe { ACTIONS.push("deref O->P"); }
+        &P
+    }
+}
+impl Deref for P {
+    type Target = Q;
+    fn deref(&self) -> &Self::Target {
+        unsafe { ACTIONS.push("deref P->Q"); }
+        &Q
+    }
+}
+impl Deref for Q {
+    type Target = P;
+    fn deref(&self) -> &Self::Target {
+        unsafe { ACTIONS.push("deref Q->P"); }
+        &P
+    }
+}
 
 fn order_lub() {
     let a = match 0 {
-        0 => &Wrap4(Inner)      as &L,
-        1 => &Wrap4(Inner)      as &M,
-        2 => &Wrap4(Inner)      as &N,
+        0 => &O      as &O,
+        1 => &P      as &P,
+        2 => &Q      as &Q,
         _ => loop {},
     };
-    assert_eq!(a.complete(), vec!["self_ty N"]);
-    let a = match 0 {
-        0 => &Wrap4(Inner)      as &L,
-        2 => &Wrap4(Inner)      as &N,
-        1 => &Wrap4(Inner)      as &M,
-        _ => loop {},
-    };
-    assert_eq!(a.complete(), vec!["self_ty N"]);
+    assert_eq!(a.complete(), vec!["self_ty P"]);
 }
 
 fn main() {

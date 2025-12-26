@@ -2,19 +2,53 @@
 
 #![allow(static_mut_refs)]
 #![allow(dead_code)]
+#![allow(unused_macros)]
 use std::ops::Deref;
 
-pub static mut ACTIONS: Vec<&'static str> = Vec::new();
+static mut ACTIONS: Vec<&'static str> = Vec::new();
 
-pub struct Wrap<T: ?Sized>(T);
+trait Trait {
+    fn self_ty(&self);
+
+    fn complete(&self) -> Vec<&'static str> {
+        self.self_ty();
+        let actions = unsafe { ACTIONS.clone() };
+        unsafe { ACTIONS.clear() };
+        actions
+    }
+}
+
+macro_rules! do_trait_impl {
+    ($self:ident, $self_ty:literal) => {
+        impl Trait for $self {
+            fn self_ty(&self) {
+                unsafe { ACTIONS.push($self_ty); }
+            }
+        }
+    }    
+}
+
+trait Dynable {}
+struct Inner;
+impl Dynable for Inner {}
+
+struct Wrap<T: ?Sized>(T);
 
 // Deref Chain: FinalType <- UnsizedArray <- IntWrapper <- ArrayWrapper <- TopType
-pub struct TopType;
-pub type ArrayWrapper = Wrap<[i32; 0]>;
-pub struct IntWrapper;
-pub type UnsizedArray = Wrap<[i32]>;
-pub struct FinalType;
-pub struct TopTypeNoTrait;
+struct TopType;
+type ArrayWrapper = Wrap<[i32; 0]>;
+struct IntWrapper;
+type UnsizedArray = Wrap<[i32]>;
+struct FinalType;
+struct TopTypeNoTrait;
+
+do_trait_impl!(TopType, "self_ty TopType");
+do_trait_impl!(ArrayWrapper, "self_ty ArrayWrapper");
+do_trait_impl!(IntWrapper, "self_ty IntWrapper");
+do_trait_impl!(UnsizedArray, "self_ty UnsizedArray");
+do_trait_impl!(FinalType, "self_ty FinalType");
+do_trait_impl!(TopTypeNoTrait, "self_ty TopTypeNoTrait");
+impl Dynable for FinalType {}
 
 impl Deref for TopType {
     type Target = ArrayWrapper;
@@ -53,47 +87,6 @@ impl Deref for TopTypeNoTrait {
     fn deref(&self) -> &Self::Target {
         unsafe { ACTIONS.push("deref TopTypeNoTrait->ArrayWrapper"); }
         &Wrap([])
-    }
-}
-
-trait Trait {
-    fn self_ty(&self);
-
-    fn complete(&self) -> Vec<&'static str> {
-        self.self_ty();
-        let actions = unsafe { ACTIONS.clone() };
-        unsafe { ACTIONS.clear() };
-        actions
-    }
-}
-
-impl Trait for TopType {
-    fn self_ty(&self) {
-        unsafe { ACTIONS.push("self_ty TopType"); }
-    }
-}
-
-impl Trait for ArrayWrapper {
-    fn self_ty(&self) {
-        unsafe { ACTIONS.push("self_ty ArrayWrapper"); }
-    }
-}
-
-impl Trait for IntWrapper {
-    fn self_ty(&self) {
-        unsafe { ACTIONS.push("self_ty IntWrapper"); }
-    }
-}
-
-impl Trait for UnsizedArray {
-    fn self_ty(&self) {
-        unsafe { ACTIONS.push("self_ty UnsizedArray"); }
-    }
-}
-
-impl Trait for FinalType {
-    fn self_ty(&self) {
-        unsafe { ACTIONS.push("self_ty FinalType"); }
     }
 }
 

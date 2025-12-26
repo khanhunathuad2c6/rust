@@ -1,51 +1,47 @@
-error[E0277]: the trait bound `TopTypeNoTrait: Trait` is not satisfied
-  --> $DIR/multistep-fail.rs:151:14
+error[E0277]: the trait bound `TopTypeNoTrait: Dynable` is not satisfied
+  --> $DIR/multistep-fail.rs:131:14
    |
-LL |         2 => &TopTypeNoTrait as &FinalType as &dyn Trait,
-   |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+LL |         2 => &TopTypeNoTrait as &FinalType as &dyn Dynable,
+   |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
    |
-help: the trait `Trait` is not implemented for `TopTypeNoTrait`
-  --> $DIR/multistep-fail.rs:18:1
+help: the trait `Dynable` is not implemented for `TopTypeNoTrait`
+  --> $DIR/multistep-fail.rs:44:1
    |
-LL | pub struct TopTypeNoTrait;
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^
-   = help: the following other types implement trait `Trait`:
-             A
-             B
-             C
-             D
-             FinalType
-             IntWrapper
-             TopType
-             Wrap<[i32; 0]>
-             Wrap<[i32]>
-   = note: required for the cast from `&TopTypeNoTrait` to `&dyn Trait`
+LL | struct TopTypeNoTrait;
+   | ^^^^^^^^^^^^^^^^^^^^^
+help: the following other types implement trait `Dynable`
+  --> $DIR/multistep-fail.rs:34:1
+   |
+LL | impl Dynable for Inner {}
+   | ^^^^^^^^^^^^^^^^^^^^^^ `Inner`
+...
+LL | impl Dynable for FinalType {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ `FinalType`
+   = note: required for the cast from `&TopTypeNoTrait` to `&dyn Dynable`
 
-error[E0277]: the trait bound `TopTypeNoTrait: Trait` is not satisfied
-  --> $DIR/multistep-fail.rs:159:14
+error[E0277]: the trait bound `TopTypeNoTrait: Dynable` is not satisfied
+  --> $DIR/multistep-fail.rs:139:14
    |
-LL |         1 => &TopTypeNoTrait as &FinalType as &dyn Trait,
-   |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+LL |         1 => &TopTypeNoTrait as &FinalType as &dyn Dynable,
+   |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
    |
-help: the trait `Trait` is not implemented for `TopTypeNoTrait`
-  --> $DIR/multistep-fail.rs:18:1
+help: the trait `Dynable` is not implemented for `TopTypeNoTrait`
+  --> $DIR/multistep-fail.rs:44:1
    |
-LL | pub struct TopTypeNoTrait;
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^
-   = help: the following other types implement trait `Trait`:
-             A
-             B
-             C
-             D
-             FinalType
-             IntWrapper
-             TopType
-             Wrap<[i32; 0]>
-             Wrap<[i32]>
-   = note: required for the cast from `&TopTypeNoTrait` to `&dyn Trait`
+LL | struct TopTypeNoTrait;
+   | ^^^^^^^^^^^^^^^^^^^^^
+help: the following other types implement trait `Dynable`
+  --> $DIR/multistep-fail.rs:34:1
+   |
+LL | impl Dynable for Inner {}
+   | ^^^^^^^^^^^^^^^^^^^^^^ `Inner`
+...
+LL | impl Dynable for FinalType {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ `FinalType`
+   = note: required for the cast from `&TopTypeNoTrait` to `&dyn Dynable`
 
 error[E0308]: `match` arms have incompatible types
-  --> $DIR/multistep-fail.rs:172:14
+  --> $DIR/multistep-fail.rs:152:14
    |
 LL |       let a = match 0 {
    |  _____________-

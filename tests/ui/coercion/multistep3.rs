@@ -1,76 +1,12 @@
-//@ check-pass
+//@ run-pass
 
 #![feature(unsize, coerce_unsized)]
 #![allow(static_mut_refs)]
 #![allow(dead_code)]
+#![allow(unused_macros)]
 use std::ops::Deref;
 
-pub static mut ACTIONS: Vec<&'static str> = Vec::new();
-
-pub struct Wrap<T: ?Sized>(T);
-
-impl<'b, T: ?Sized + std::marker::Unsize<U> + std::ops::CoerceUnsized<U>, U: ?Sized>
-    std::ops::CoerceUnsized<Wrap<U>> for Wrap<T> {}
-
-struct Inner;
-type A = Wrap<Inner>;
-type B = Wrap<dyn Trait + Send>;
-type C = Wrap<dyn Trait>;
-
-impl Deref for C {
-    type Target = B;
-    fn deref(&self) -> &Self::Target {
-        unsafe { ACTIONS.push("deref B->C"); }
-        &Wrap(Inner)
-    }
-}
-
-/*
-impl Deref for A {
-    type Target = B;
-    fn deref(&self) -> &Self::Target {
-        unsafe { ACTIONS.push("deref A->B"); }
-        &Wrap([])
-    }
-}
-impl Deref for B {
-    type Target = C;
-    fn deref(&self) -> &Self::Target {
-        unsafe { ACTIONS.push("deref B->D"); }
-        &Wrap
-    }
-}
-impl Deref for D {
-    type Target = C;
-    fn deref(&self) -> &Self::Target {
-        unsafe { ACTIONS.push("deref C->D"); }
-        &C
-    }
-}
-*/
-impl Trait for A {
-    fn self_ty(&self) {
-        unsafe { ACTIONS.push("self_ty A"); }
-    }
-}
-/*
-impl Trait for B {
-    fn self_ty(&self) {
-        unsafe { ACTIONS.push("self_ty B"); }
-    }
-}
-impl Trait for C {
-    fn self_ty(&self) {
-        unsafe { ACTIONS.push("self_ty C"); }
-    }
-}
-*/
-impl Trait for Inner {
-    fn self_ty(&self) {
-        unsafe { ACTIONS.push("self_ty Inner"); }
-    }
-}
-
+static mut ACTIONS: Vec<&'static str> = Vec::new();
 
 trait Trait {
     fn self_ty(&self);
@@ -83,37 +19,56 @@ trait Trait {
     }
 }
 
+macro_rules! do_trait_impl {
+    ($self:ident, $self_ty:literal) => {
+        impl Trait for $self {
+            fn self_ty(&self) {
+                unsafe { ACTIONS.push($self_ty); }
+            }
+        }
+    }    
+}
+
+trait Dynable {}
+struct Inner;
+impl Dynable for Inner {}
+
+struct Wrap3<T: ?Sized>(T);
+
+impl<'b, T: ?Sized + std::marker::Unsize<U> + std::ops::CoerceUnsized<U>, U: ?Sized>
+    std::ops::CoerceUnsized<Wrap3<U>> for Wrap3<T> {}
+
+type I = Wrap3<Inner>;
+type J = Wrap3<dyn Dynable + Send>;
+type K = Wrap3<dyn Dynable>;
+
+do_trait_impl!(I, "self_ty I");
+do_trait_impl!(J, "self_ty J");
+do_trait_impl!(K, "self_ty K");
+
+impl Deref for K {
+    type Target = J;
+    fn deref(&self) -> &Self::Target {
+        unsafe { ACTIONS.push("deref K->J"); }
+        &Wrap3(Inner)
+    }
+}
+
 fn order_lub() {
-    /**/
     let a = match 0 {
-        0 => &Wrap(Inner)      as &A,
-        1 => &Wrap(Inner)      as &B,
-        2 => &Wrap(Inner)      as &C,
+        0 => &Wrap3(Inner)      as &I,
+        1 => &Wrap3(Inner)      as &J,
+        2 => &Wrap3(Inner)      as &K,
         _ => loop {},
     };
-    assert_eq!(
-        std::any::type_name_of_val(a),
-        "playground::Wrap<dyn playground::Trait + core::marker::Send>",
-    );
-    assert_eq!(a.0.complete(), vec!["self_ty Inner"]);
+    assert_eq!(a.complete(), vec!["self_ty J"]);
     let a = match 0 {
-        0 => &Wrap(Inner)      as &A,
-        2 => &Wrap(Inner)      as &C,
-        1 => &Wrap(Inner)      as &B,
+        0 => &Wrap3(Inner)      as &I,
+        2 => &Wrap3(Inner)      as &K,
+        1 => &Wrap3(Inner)      as &J,
         _ => loop {},
     };
-    assert_eq!(std::any::type_name_of_val(a), "playground::Wrap<dyn playground::Trait>");
-    assert_eq!(a.0.complete(), vec!["self_ty Inner"]);
-        /*
-    let b = match 0 {
-        0 => &A          as &A,
-        1 => &Wrap([])   as &B,
-        3 => &Wrap([])   as &D,
-        2 => &C          as &C,
-        _ => loop {},
-    };
-    assert_eq!(b.complete(), vec!["self_ty UnsizedArray"]);
-    */
+    assert_eq!(a.complete(), vec!["self_ty K"]);
 }
 
 fn main() {
