@@ -454,10 +454,22 @@ impl<'f, 'tcx> Coerce<'f, 'tcx> {
 
         let result = self.commit_if_ok(|_| coerce_inner(new_ty, prev_ty));
         let first_error = match result {
-            Ok(_) => {
-                return result.map(|r| InferOk {
-                    obligations: r.obligations,
-                    value: (r.value.0, r.value.1, CoerceDirection::ToPrev),
+            Ok(forwd_result) => {
+                let prev_ty = self.resolve_vars_if_possible(prev_ty);
+                let new_ty = self.resolve_vars_if_possible(new_ty);
+                let rev_result = self.commit_if_ok(|_| coerce_inner(prev_ty, new_ty));
+                if let Ok(rev_result) = rev_result {
+                    let forwd_ty = self.resolve_vars_if_possible(forwd_result.value.1);
+                    let rev_ty = self.resolve_vars_if_possible(rev_result.value.1);
+                    let res = self.unify(forwd_ty, rev_ty, ForceLeakCheck::No);
+                    if let Err(e) = res {
+                        return Err(e);
+                    }
+                }
+
+                return Ok(InferOk {
+                    obligations: forwd_result.obligations,
+                    value: (forwd_result.value.0, forwd_result.value.1, CoerceDirection::ToPrev),
                 });
             }
             Err(e) => e,

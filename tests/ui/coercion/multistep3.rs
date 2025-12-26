@@ -1,4 +1,4 @@
-//@ run-pass
+//@ check-fail
 
 #![feature(unsize, coerce_unsized)]
 #![allow(static_mut_refs)]
@@ -73,6 +73,7 @@ assert_arms(
             0 => &Wrap3(Inner)      as &I,
             1 => &Wrap3(Inner)      as &J,
             2 => &Wrap3(Inner)      as &K,
+            //~^ ERROR `match` arms have incompatible types
             _ => loop {},
         }.complete(),
         &[
@@ -87,6 +88,7 @@ assert_arms(
             0 => &Wrap3(Inner)      as &I,
             1 => &Wrap3(Inner)      as &K,
             2 => &Wrap3(Inner)      as &J,
+            //~^ ERROR `match` arms have incompatible types
             _ => loop {},
         }.complete(),
         &[
